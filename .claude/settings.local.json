@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "WebSearch",
+      "WebFetch(domain:www.brandcolorcode.com)",
+      "WebFetch(domain:www.underconsideration.com)",
+      "WebFetch(domain:www.chubb.com)",
+      "Bash(npm run dev:*)",
+      "WebFetch(domain:www.lina.co.kr)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
