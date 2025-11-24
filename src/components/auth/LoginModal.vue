@@ -1,71 +1,160 @@
 <template>
   <div v-if="isOpen" class="modal-overlay" @click="handleOverlayClick">
     <div class="modal-container" @click.stop>
-      <div class="modal-header">
-        <h2>🛡️ 보험증권 확인</h2>
-        <p class="subtitle">가입하신 보험 정보를 확인해주세요</p>
+      <!-- SMS 인증 화면 -->
+      <div v-if="showSmsVerification">
+        <SmsVerification
+          :userName="pendingUser?.name || name"
+          :birthDate="pendingUser?.birthDate || birthDate"
+          @verified="handleSmsVerified"
+          @back="showSmsVerification = false"
+        />
       </div>
 
-      <div class="modal-body">
-        <div class="tab-buttons">
-          <button
-            :class="['tab-button', { active: loginMethod === 'policy' }]"
-            @click="loginMethod = 'policy'"
-          >
-            보험증권번호
+      <!-- 항공편 정보 입력 화면 (선택사항) -->
+      <div v-else-if="showFlightInput">
+        <div class="modal-header">
+          <h2>✈️ 항공편 정보</h2>
+          <p class="subtitle">항공편 정보를 입력하시면 더 나은 서비스를 제공해드립니다</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>항공편명 (선택사항)</label>
+            <input
+              v-model="flightNumber"
+              type="text"
+              placeholder="예: KE706 (김포), OZ102 (인천)"
+              class="input-field"
+              @keyup.enter="handleFlightSubmit"
+            />
+            <p class="hint">💡 출발 항공편명을 입력하면 공항별 지연 정보와 라운지 안내를 받을 수 있습니다</p>
+          </div>
+
+          <div class="flight-benefits">
+            <p class="benefits-title">📋 제공되는 정보</p>
+            <ul>
+              <li>✓ 실시간 항공편 지연 정보</li>
+              <li>✓ 출발 공항 라운지 이용 안내 (인천/김포)</li>
+              <li>✓ 지연 보상 자동 안내</li>
+            </ul>
+          </div>
+
+          <div class="marketing-consent-section">
+            <div class="consent-card">
+              <div class="consent-header">
+                <span class="consent-icon">📧</span>
+                <h4>마케팅 정보 수신 동의</h4>
+              </div>
+              <div class="consent-body">
+                <label class="checkbox-label">
+                  <input
+                    v-model="marketingConsent.email"
+                    type="checkbox"
+                    class="checkbox-input"
+                  />
+                  <span class="checkbox-custom"></span>
+                  <span class="checkbox-text">이메일 수신 동의</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    v-model="marketingConsent.sms"
+                    type="checkbox"
+                    class="checkbox-input"
+                  />
+                  <span class="checkbox-custom"></span>
+                  <span class="checkbox-text">SMS 수신 동의</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    v-model="marketingConsent.push"
+                    type="checkbox"
+                    class="checkbox-input"
+                  />
+                  <span class="checkbox-custom"></span>
+                  <span class="checkbox-text">앱 푸시 알림 수신 동의</span>
+                </label>
+              </div>
+              <p class="consent-description">
+                여행 정보, 특별 혜택, 보험 상품 안내 등을 받아보실 수 있습니다. 동의하지 않으셔도 서비스 이용에는 제한이 없습니다.
+              </p>
+            </div>
+          </div>
+
+          <button class="login-button" @click="handleFlightSubmit">
+            {{ flightNumber ? '확인' : '건너뛰기' }}
           </button>
-          <button
-            :class="['tab-button', { active: loginMethod === 'personal' }]"
-            @click="loginMethod = 'personal'"
-          >
-            개인정보
+        </div>
+      </div>
+
+      <!-- 일반 로그인 화면 -->
+      <div v-else>
+        <div class="modal-header">
+          <h2>🛡️ 보험증권 확인</h2>
+          <p class="subtitle">가입하신 보험 정보를 확인해주세요</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="tab-buttons">
+            <button
+              :class="['tab-button', { active: loginMethod === 'policy' }]"
+              @click="loginMethod = 'policy'"
+            >
+              보험증권번호
+            </button>
+            <button
+              :class="['tab-button', { active: loginMethod === 'personal' }]"
+              @click="loginMethod = 'personal'"
+            >
+              개인정보
+            </button>
+          </div>
+
+          <!-- 보험증권번호로 로그인 -->
+          <div v-if="loginMethod === 'policy'" class="form-group">
+            <label>보험증권번호</label>
+            <input
+              v-model="policyNumber"
+              type="text"
+              placeholder="CHB2024-1234567"
+              class="input-field"
+              @keyup.enter="handleLogin"
+            />
+            <p class="hint">💡 데모용: CHB2024-1234567</p>
+          </div>
+
+          <!-- 개인정보로 로그인 -->
+          <div v-else class="form-group">
+            <label>이름</label>
+            <input
+              v-model="name"
+              type="text"
+              placeholder="김해커"
+              class="input-field"
+            />
+
+            <label>생년월일</label>
+            <input
+              v-model="birthDate"
+              type="date"
+              class="input-field"
+              @keyup.enter="handleLogin"
+            />
+            <p class="hint">💡 데모용: 김해커 / 1990-01-15, 허승진 / 1988-02-02, 김손보 / 1990-02-02</p>
+          </div>
+
+          <div v-if="errorMessage" class="error-message">
+            {{ errorMessage }}
+          </div>
+
+          <button class="login-button" @click="handleLogin">
+            확인
           </button>
-        </div>
 
-        <!-- 보험증권번호로 로그인 -->
-        <div v-if="loginMethod === 'policy'" class="form-group">
-          <label>보험증권번호</label>
-          <input
-            v-model="policyNumber"
-            type="text"
-            placeholder="CHB2024-1234567"
-            class="input-field"
-            @keyup.enter="handleLogin"
-          />
-          <p class="hint">💡 데모용: CHB2024-1234567</p>
-        </div>
-
-        <!-- 개인정보로 로그인 -->
-        <div v-else class="form-group">
-          <label>이름</label>
-          <input
-            v-model="name"
-            type="text"
-            placeholder="김해커"
-            class="input-field"
-          />
-
-          <label>생년월일</label>
-          <input
-            v-model="birthDate"
-            type="date"
-            class="input-field"
-            @keyup.enter="handleLogin"
-          />
-          <p class="hint">💡 데모용: 김해커 / 1990-01-15</p>
-        </div>
-
-        <div v-if="errorMessage" class="error-message">
-          {{ errorMessage }}
-        </div>
-
-        <button class="login-button" @click="handleLogin">
-          확인
-        </button>
-
-        <div class="demo-notice">
-          <p>📌 해커톤 데모용 앱입니다</p>
-          <p>위의 샘플 정보를 사용해주세요</p>
+          <div class="demo-notice">
+            <p>📌 해커톤 데모용 앱입니다</p>
+            <p>위의 샘플 정보를 사용해주세요</p>
+          </div>
         </div>
       </div>
     </div>
@@ -75,6 +164,7 @@
 <script setup>
 import { ref } from 'vue'
 import { authenticateUser } from '../../data/mockUserData.js'
+import SmsVerification from './SmsVerification.vue'
 
 const props = defineProps({
   isOpen: {
@@ -90,6 +180,15 @@ const policyNumber = ref('')
 const name = ref('')
 const birthDate = ref('')
 const errorMessage = ref('')
+const showSmsVerification = ref(false)
+const showFlightInput = ref(false)
+const flightNumber = ref('')
+const marketingConsent = ref({
+  email: false,
+  sms: false,
+  push: false
+})
+const pendingUser = ref(null)
 
 const handleOverlayClick = () => {
   // 모달 외부 클릭 시 닫지 않음 (필수 입력)
@@ -117,10 +216,54 @@ const handleLogin = () => {
   const user = authenticateUser(credentials)
 
   if (user) {
-    emit('login', user)
-    emit('close')
+    // 허승진/1988-02-02 또는 김손보/1990-02-02 인 경우 SMS 인증 필요
+    if ((user.name === '허승진' && user.birthDate === '1988-02-02') ||
+        (user.name === '김손보' && user.birthDate === '1990-02-02')) {
+      pendingUser.value = user
+      showSmsVerification.value = true
+    } else {
+      // 일반 로그인
+      emit('login', user)
+      emit('close')
+    }
   } else {
     errorMessage.value = '일치하는 보험 가입 정보를 찾을 수 없습니다'
+  }
+}
+
+const handleSmsVerified = () => {
+  // SMS 인증 완료 후 항공편 정보 입력 화면으로 이동
+  if (pendingUser.value) {
+    showSmsVerification.value = false
+    showFlightInput.value = true
+  }
+}
+
+const handleFlightSubmit = () => {
+  // 항공편 정보와 마케팅 동의를 사용자 객체에 추가
+  if (pendingUser.value) {
+    const userWithFlight = {
+      ...pendingUser.value,
+      flightInfo: flightNumber.value ? {
+        flightNumber: flightNumber.value.trim().toUpperCase(),
+        timestamp: new Date().toISOString()
+      } : null,
+      marketingConsent: {
+        email: marketingConsent.value.email,
+        sms: marketingConsent.value.sms,
+        push: marketingConsent.value.push,
+        timestamp: new Date().toISOString()
+      }
+    }
+
+    emit('login', userWithFlight)
+    emit('close')
+
+    // 상태 초기화
+    showFlightInput.value = false
+    flightNumber.value = ''
+    marketingConsent.value = { email: false, sms: false, push: false }
+    pendingUser.value = null
   }
 }
 </script>
@@ -291,6 +434,132 @@ label {
   color: #666;
 }
 
+.flight-benefits {
+  background: #f0f9ff;
+  border: 1px solid #b3e0ff;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.benefits-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.flight-benefits ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flight-benefits li {
+  font-size: 13px;
+  color: #666;
+  padding: 6px 0;
+  line-height: 1.5;
+}
+
+.marketing-consent-section {
+  margin-top: 20px;
+}
+
+.consent-card {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.consent-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.consent-icon {
+  font-size: 24px;
+}
+
+.consent-header h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.consent-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  position: relative;
+  padding: 10px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.checkbox-label:hover {
+  background: rgba(77, 191, 200, 0.05);
+}
+
+.checkbox-input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.checkbox-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.checkbox-input:checked ~ .checkbox-custom {
+  background: #4DBFC8;
+  border-color: #4DBFC8;
+}
+
+.checkbox-input:checked ~ .checkbox-custom::after {
+  content: '✓';
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.checkbox-text {
+  font-size: 14px;
+  color: #333;
+  user-select: none;
+}
+
+.consent-description {
+  margin: 12px 0 0;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.6;
+  border: 1px solid #e0e0e0;
+}
+
 /* 모바일 최적화 */
 @media (max-width: 768px) {
   .modal-container {
@@ -340,6 +609,27 @@ label {
 
   .demo-notice p {
     font-size: 12px;
+  }
+
+  .consent-card {
+    padding: 16px;
+  }
+
+  .consent-header h4 {
+    font-size: 14px;
+  }
+
+  .checkbox-label {
+    padding: 8px;
+  }
+
+  .checkbox-text {
+    font-size: 13px;
+  }
+
+  .consent-description {
+    font-size: 11px;
+    padding: 10px;
   }
 }
 
