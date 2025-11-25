@@ -151,6 +151,8 @@ export function useChat() {
         empathyMessage = `${item ? item + '을(를)' : '휴대품을'} 잃으셨군요. 정말 난감하시겠어요. 😢\n\n걱정하지 마세요. 차근차근 안내해 드릴게요!`
       } else if (coverageType === 'overseas_medical') {
         empathyMessage = `${symptom ? symptom + '(으)로' : ''} 아프셨다니 걱정이네요. 😢\n\n빠른 쾌유를 바라며, 보험금 청구 절차를 친절하게 안내해 드리겠습니다.`
+      } else if (coverageType === 'flight_delay') {
+        empathyMessage = '항공기 지연으로 불편을 겪으셨군요. 😢\n\n항공기 지연 보상 청구 절차를 안내해 드리겠습니다!'
       } else {
         empathyMessage = '네, 상황을 확인했습니다.\n\n필요하신 절차를 하나씩 안내해 드릴게요.'
       }
@@ -183,6 +185,12 @@ export function useChat() {
               coverage: '최대 3,000만원',
               deductible: '건당 2만원',
               description: '해외 여행 중 질병 또는 상해로 인한 의료비를 보장합니다.'
+            },
+            'flight_delay': {
+              title: '항공기 지연',
+              coverage: '최대 30만원',
+              deductible: '자기부담금 없음',
+              description: '예정 출발시각으로부터 4시간 이상 지연된 경우 지연시간에 따라 보상합니다.'
             }
           }
 
@@ -220,6 +228,7 @@ export function useChat() {
                       coverageType: coverageType,
                       needPolice: coverageType === 'personal_belongings',
                       needHospital: coverageType === 'overseas_medical',
+                      needAirport: coverageType === 'flight_delay',
                       originalAccidentDescription: text // 원본 사고 내용 저장
                     }
                   },
@@ -302,6 +311,8 @@ export function useChat() {
             empathyMessage = `${args.item ? args.item + '을(를)' : '휴대품을'} 잃으셨군요. 정말 난감하시겠어요. 😢\n\n걱정하지 마세요. 차근차근 안내해 드릴게요!`
           } else if (coverageType === 'overseas_medical') {
             empathyMessage = `${args.symptom ? args.symptom + '(으)로' : ''} 아프셨다니 걱정이네요. 😢\n\n빠른 쾌유를 바라며, 보험금 청구 절차를 친절하게 안내해 드리겠습니다.`
+          } else if (coverageType === 'flight_delay') {
+            empathyMessage = '항공기 지연으로 불편을 겪으셨군요. 😢\n\n항공기 지연 보상 청구 절차를 안내해 드리겠습니다!'
           } else {
             empathyMessage = '네, 상황을 확인했습니다.\n\n필요하신 절차를 하나씩 안내해 드릴게요.'
           }
@@ -334,6 +345,12 @@ export function useChat() {
                   coverage: '최대 3,000만원',
                   deductible: '건당 2만원',
                   description: '해외 여행 중 질병 또는 상해로 인한 의료비를 보장합니다.'
+                },
+                'flight_delay': {
+                  title: '항공기 지연',
+                  coverage: '최대 30만원',
+                  deductible: '자기부담금 없음',
+                  description: '예정 출발시각으로부터 4시간 이상 지연된 경우 지연시간에 따라 보상합니다.'
                 }
               }
 
@@ -371,6 +388,7 @@ export function useChat() {
                           coverageType: coverageType,
                           needPolice: args.needPolice || false,
                           needHospital: args.needHospital || false,
+                          needAirport: coverageType === 'flight_delay',
                           originalAccidentDescription: text // 원본 사고 내용 저장
                         }
                       },

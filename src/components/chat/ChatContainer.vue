@@ -34,6 +34,8 @@
         @action="handleActionClick"
         @updateMessage="handleUpdateMessage"
         @checklistConfirm="handleChecklistConfirm"
+        @fileSubmit="handleFileSubmit"
+        @fileSkip="handleFileSkip"
       />
 
       <!-- 로딩 인디케이터 -->
@@ -91,6 +93,7 @@ import { useChat } from '../../composables/useChat.js'
 import { CLAIM_DOCUMENTS } from '../../data/claimDocuments.js'
 import { MessageType } from '../../types/message.js'
 import { searchPlace } from '../../services/placeService.js'
+import { verifyDocuments } from '../../services/openai.js'
 
 // 상수 정의
 const CONSTANTS = {
@@ -198,7 +201,7 @@ const generatePersonalizedScript = async () => {
     questionsQueue: []
   }
 
-  // 스크립트 후 체크리스트 확인 메시지 (4초 후)
+  // 스크립트 후 서류 발급 확인 메시지 (4초 후)
   setTimeout(async () => {
     const checkQuestion = {
       id: Date.now(),
@@ -210,35 +213,38 @@ const generatePersonalizedScript = async () => {
     messages.value.push(checkQuestion)
     await scrollToBottom()
 
-    // 체크리스트 보기 버튼 (2초 후)
+    // 서류 검증 제안 버튼 (2초 후)
     setTimeout(async () => {
-      const checklistButton = {
+      const verifyButton = {
         id: Date.now(),
         type: 'action_buttons',
         sender: 'bot',
         content: {
-          message: '서류 체크리스트를 보여드릴까요?',
+          message: '발급 받으신 서류를 확인해드릴까요?',
           actions: [
             {
-              label: '✅ 네, 체크리스트 보기',
-              icon: '📋',
-              action: 'show_checklist',
+              label: '✅ 네, 확인해주세요',
+              icon: '📄',
+              action: 'verify_documents',
               style: 'primary',
               data: {
                 coverageType: savedCoverageType
               }
             },
             {
-              label: '⏳ 아직 준비 중이에요',
-              icon: '⏳',
-              action: 'documents_pending',
-              style: 'secondary'
+              label: '아니요, 괜찮아요',
+              icon: '👍',
+              action: 'skip_verification',
+              style: 'secondary',
+              data: {
+                coverageType: savedCoverageType
+              }
             }
           ]
         },
         timestamp: Date.now()
       }
-      messages.value.push(checklistButton)
+      messages.value.push(verifyButton)
       await scrollToBottom()
     }, 2000)
   }, 4000)
@@ -505,8 +511,8 @@ const handleActionClick = async (actionData) => {
     case 'confirm_document_guide':
       // "필요 서류를 안내해드릴까요?" 확인 후 서류 선택 버튼 표시
       {
-        const { coverageType, needPolice, needHospital, originalAccidentDescription } = actionData.data || {}
-        
+        const { coverageType, needPolice, needHospital, needAirport, originalAccidentDescription } = actionData.data || {}
+
         // 원본 사고 내용 저장
         scriptInfoCollection.value.originalAccidentDescription = originalAccidentDescription || ''
 
@@ -528,7 +534,8 @@ const handleActionClick = async (actionData) => {
                 data: {
                   coverageType: coverageType,
                   needPolice: needPolice || false,
-                  needHospital: needHospital || false
+                  needHospital: needHospital || false,
+                  needAirport: needAirport || false
                 }
               },
               {
@@ -552,7 +559,7 @@ const handleActionClick = async (actionData) => {
     case 'show_overseas_docs':
       // "꼭 준비해야하는 서류 (현지)" 선택
       {
-        const { coverageType, needPolice, needHospital } = actionData.data
+        const { coverageType, needPolice, needHospital, needAirport } = actionData.data
         const documentsData = CLAIM_DOCUMENTS[coverageType]
 
         // 프로그레스 2단계로 업데이트 (서류 안내)
@@ -577,19 +584,19 @@ const handleActionClick = async (actionData) => {
         setTimeout(async () => {
           const actions = []
 
-          // 위치 안내 버튼
-          if (needPolice || needHospital) {
+          // 위치 안내 버튼 (항공기 지연이 아닌 경우만)
+          if (!needAirport && (needPolice || needHospital)) {
             const locationLabel = needPolice ? '경찰서' : '병원'
             actions.push({
               label: `${locationLabel} 위치를 안내해드릴까요?`,
               icon: needPolice ? '🚔' : '🏥',
               action: needPolice ? 'search_police' : 'search_hospital',
               style: 'primary',
-              data: { 
-                coverageType, 
-                needPolice, 
+              data: {
+                coverageType,
+                needPolice,
                 needHospital,
-                originalAccidentDescription: scriptInfoCollection.value.originalAccidentDescription 
+                originalAccidentDescription: scriptInfoCollection.value.originalAccidentDescription
               }
             })
           }
@@ -1120,6 +1127,59 @@ const handleActionClick = async (actionData) => {
       }
       break
 
+    case 'verify_documents':
+      // "네, 확인해주세요" - 파일 업로드 컴포넌트 표시
+      {
+        const { coverageType } = actionData.data || {}
+
+        const uploadMessage = {
+          id: Date.now(),
+          type: 'file_upload',
+          sender: 'bot',
+          content: {
+            coverageType: coverageType,
+            purpose: 'verification' // 검증 목적 표시
+          },
+          timestamp: Date.now()
+        }
+        messages.value.push(uploadMessage)
+        await scrollToBottom()
+      }
+      break
+
+    case 'skip_verification':
+      // "아니요, 괜찮아요" - 체크리스트로 바로 이동
+      {
+        const { coverageType } = actionData.data || {}
+
+        const skipMessage = {
+          id: Date.now(),
+          type: 'text',
+          sender: 'bot',
+          content: '알겠습니다! 서류 체크리스트를 확인해주세요. 📋',
+          timestamp: Date.now()
+        }
+        messages.value.push(skipMessage)
+        await scrollToBottom()
+
+        // 1초 후 체크리스트 표시
+        setTimeout(async () => {
+          const checklistMessage = {
+            id: Date.now(),
+            type: 'checklist',
+            sender: 'bot',
+            content: mockChecklistData(coverageType),
+            timestamp: Date.now()
+          }
+          messages.value.push(checklistMessage)
+          await scrollToBottom()
+
+          // 프로그레스 4단계로 업데이트 (청구 절차)
+          emit('progressUpdate', 4)
+        }, 1000)
+      }
+      break
+
     case 'show_checklist':
       // 체크리스트 표시
       {
@@ -1301,9 +1361,220 @@ const handleChecklistConfirm = async ({ messageId, marketingConsent }) => {
   }, 1500)
 }
 
+// 파일 업로드 후 서류 검증 처리
+const handleFileSubmit = async (filesData) => {
+  console.log('ChatContainer - handleFileSubmit called:', filesData)
+
+  // 로딩 메시지 표시
+  const loadingMessage = {
+    id: Date.now(),
+    type: 'text',
+    sender: 'bot',
+    content: '📄 업로드하신 서류를 분석하고 있습니다...',
+    timestamp: Date.now()
+  }
+  messages.value.push(loadingMessage)
+  await scrollToBottom()
+
+  try {
+    // coverageType 찾기 (가장 최근 file_upload 메시지에서)
+    const fileUploadMessage = [...messages.value]
+      .reverse()
+      .find(msg => msg.type === 'file_upload')
+
+    const coverageType = fileUploadMessage?.content?.coverageType || 'personal_belongings'
+
+    // OpenAI Vision API로 서류 검증
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+
+    const verificationResult = await verifyDocuments(filesData, coverageType, apiKey)
+
+    // 검증 결과 메시지
+    const resultMessage = {
+      id: Date.now(),
+      type: 'text',
+      sender: 'bot',
+      content: formatVerificationResult(verificationResult),
+      timestamp: Date.now()
+    }
+    messages.value.push(resultMessage)
+    await scrollToBottom()
+
+    // 2초 후 체크리스트로 이동
+    setTimeout(async () => {
+      const checklistMessage = {
+        id: Date.now(),
+        type: 'checklist',
+        sender: 'bot',
+        content: mockChecklistData(coverageType),
+        timestamp: Date.now()
+      }
+      messages.value.push(checklistMessage)
+      await scrollToBottom()
+
+      // 프로그레스 4단계로 업데이트 (청구 절차)
+      emit('progressUpdate', 4)
+    }, 2000)
+
+  } catch (error) {
+    console.error('Document verification error:', error)
+
+    // 에러 메시지
+    const errorMessage = {
+      id: Date.now(),
+      type: 'text',
+      sender: 'bot',
+      content: '⚠️ 서류 분석 중 오류가 발생했습니다.\n\n그래도 체크리스트로 계속 진행하시겠어요?',
+      timestamp: Date.now()
+    }
+    messages.value.push(errorMessage)
+    await scrollToBottom()
+
+    // 계속 진행 버튼
+    setTimeout(async () => {
+      const continueButton = {
+        id: Date.now(),
+        type: 'action_buttons',
+        sender: 'bot',
+        content: {
+          message: '',
+          actions: [
+            {
+              label: '✅ 네, 계속할게요',
+              icon: '▶',
+              action: 'skip_verification',
+              style: 'primary',
+              data: { coverageType: 'personal_belongings' }
+            }
+          ]
+        },
+        timestamp: Date.now()
+      }
+      messages.value.push(continueButton)
+      await scrollToBottom()
+    }, 1000)
+  }
+}
+
+// 서류 검증 건너뛰기 처리
+const handleFileSkip = async () => {
+  console.log('ChatContainer - handleFileSkip called')
+
+  // coverageType 찾기
+  const fileUploadMessage = [...messages.value]
+    .reverse()
+    .find(msg => msg.type === 'file_upload')
+
+  const coverageType = fileUploadMessage?.content?.coverageType || 'personal_belongings'
+
+  const skipMessage = {
+    id: Date.now(),
+    type: 'text',
+    sender: 'bot',
+    content: '알겠습니다! 서류 체크리스트를 확인해주세요. 📋',
+    timestamp: Date.now()
+  }
+  messages.value.push(skipMessage)
+  await scrollToBottom()
+
+  // 1초 후 체크리스트 표시
+  setTimeout(async () => {
+    const checklistMessage = {
+      id: Date.now(),
+      type: 'checklist',
+      sender: 'bot',
+      content: mockChecklistData(coverageType),
+      timestamp: Date.now()
+    }
+    messages.value.push(checklistMessage)
+    await scrollToBottom()
+
+    // 프로그레스 4단계로 업데이트 (청구 절차)
+    emit('progressUpdate', 4)
+  }, 1000)
+}
+
+// 검증 결과 포맷팅
+const formatVerificationResult = (result) => {
+  const { isValid, documentType, confidence, findings, issues, recommendation } = result
+
+  let message = `📊 **서류 검증 결과**\n\n`
+
+  if (isValid) {
+    message += `✅ **인식된 서류**: ${documentType}\n`
+    message += `🔍 **신뢰도**: ${confidence}\n\n`
+  } else {
+    message += `⚠️ **주의**: 확인이 필요합니다\n`
+    message += `📄 **인식된 서류**: ${documentType}\n`
+    message += `🔍 **신뢰도**: ${confidence}\n\n`
+  }
+
+  if (findings && findings.length > 0) {
+    message += `**발견 내용:**\n`
+    findings.slice(0, 3).forEach(finding => {
+      message += `• ${finding}\n`
+    })
+    message += `\n`
+  }
+
+  if (issues && issues.length > 0) {
+    message += `**확인 필요 사항:**\n`
+    issues.forEach(issue => {
+      message += `⚠️ ${issue}\n`
+    })
+    message += `\n`
+  }
+
+  if (recommendation) {
+    message += `💡 **권장사항**: ${recommendation}\n\n`
+  }
+
+  message += `이제 서류 체크리스트를 확인해주세요!`
+
+  return message
+}
+
+// 체크리스트 데이터 생성
+const mockChecklistData = (coverageType) => {
+  const documentsData = CLAIM_DOCUMENTS[coverageType] || CLAIM_DOCUMENTS.personal_belongings
+
+  return [
+    {
+      title: '해외에서 준비',
+      icon: '🌍',
+      description: '현지',
+      documents: documentsData.overseas.map(doc => ({
+        ...doc,
+        checked: false
+      }))
+    },
+    {
+      title: '귀국 후 준비',
+      icon: '🏠',
+      description: '국내',
+      documents: documentsData.home.map(doc => ({
+        ...doc,
+        checked: false
+      }))
+    }
+  ]
+}
+
+// 초기 메시지 자동 전송 (외부에서 호출용)
+const sendInitialMessage = async (message) => {
+  if (!message || !message.trim()) return
+
+  // 메시지 입력 후 잠시 대기 (자연스러운 효과)
+  await new Promise(resolve => setTimeout(resolve, 500))
+
+  inputText.value = message
+  await handleSendMessage()
+}
+
 // 부모 컴포넌트에서 접근 가능하도록 expose
 defineExpose({
-  addMessage
+  addMessage,
+  sendInitialMessage
 })
 </script>
 

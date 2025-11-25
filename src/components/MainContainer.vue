@@ -47,7 +47,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import LoginModal from './auth/LoginModal.vue'
 import InsuranceDashboard from './insurance/InsuranceDashboard.vue'
 import InsuranceDashboardCopy from './insurance/InsuranceDashboardCopy.vue'
@@ -62,6 +62,7 @@ const currentUser = ref(null)
 const currentStep = ref(0)
 const chatContainerRef = ref(null)
 const progressTimers = ref([]) // 타이머 관리용
+const pendingInitialMessage = ref(null) // 대기 중인 초기 메시지
 
 // 진행 단계 정의
 const progressSteps = computed(() => {
@@ -102,7 +103,10 @@ const handleLogin = (user) => {
   viewMode.value = 'dashboard'
 }
 
-const handleStartClaim = () => {
+const handleStartClaim = (initialMessage = null) => {
+  // 초기 메시지 저장
+  pendingInitialMessage.value = initialMessage
+
   viewMode.value = 'chat'
   chatPhase.value = 'accident_classification'
   currentStep.value = 0
@@ -192,6 +196,23 @@ const handleChecklistComplete = () => {
     })
   }
 }
+
+// ChatContainer가 준비되면 초기 메시지 전송
+watch([viewMode, chatContainerRef], async ([mode, ref]) => {
+  if (mode === 'chat' && ref && pendingInitialMessage.value) {
+    const messageToSend = pendingInitialMessage.value
+    pendingInitialMessage.value = null // 초기화
+
+    // DOM이 완전히 업데이트될 때까지 대기
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 300))
+
+    // 초기 메시지 전송
+    if (chatContainerRef.value) {
+      chatContainerRef.value.sendInitialMessage(messageToSend)
+    }
+  }
+})
 
 // 초기 로딩
 onMounted(() => {

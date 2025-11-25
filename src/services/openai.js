@@ -670,3 +670,111 @@ Important guidelines:
     return scriptText
   }
 }
+
+/**
+ * 업로드된 서류를 AI로 검증
+ * @param {Array} filesData - 업로드된 파일 데이터 (Base64)
+ * @param {string} coverageType - 보험 담보 유형
+ * @param {string} apiKey - OpenAI API 키
+ * @returns {Promise<Object>} 검증 결과
+ */
+export async function verifyDocuments(filesData, coverageType, apiKey) {
+  try {
+    // 담보 유형별 필요 서류 정의
+    const requiredDocuments = {
+      personal_belongings: {
+        overseas: ['경찰서 신고 확인서', 'Police Report', '도난/분실 신고서'],
+        description: '휴대품 손해 (도난/분실/파손)'
+      },
+      overseas_medical: {
+        overseas: ['진단서', 'Medical Record', 'Medical Certificate', '진료비 영수증', 'Receipt'],
+        description: '해외 의료비'
+      },
+      flight_delay: {
+        overseas: ['항공기 지연 증명서', 'Delay Certificate', '탑승권', 'Boarding Pass'],
+        description: '항공기 지연'
+      }
+    }
+
+    const docInfo = requiredDocuments[coverageType] || requiredDocuments.personal_belongings
+
+    // Vision API를 위한 메시지 구성
+    const messages = [
+      {
+        role: 'system',
+        content: `당신은 해외여행보험 서류 검증 전문가입니다. 업로드된 서류가 ${docInfo.description} 청구에 필요한 올바른 서류인지 검증해주세요.
+
+필요한 서류: ${docInfo.overseas.join(', ')}
+
+다음 형식의 JSON으로 응답해주세요:
+{
+  "isValid": true/false,
+  "documentType": "인식된 서류 유형",
+  "confidence": "높음/중간/낮음",
+  "findings": ["발견한 내용 1", "발견한 내용 2"],
+  "issues": ["문제점 1", "문제점 2"] (문제가 있는 경우),
+  "recommendation": "추천 사항"
+}`
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `업로드된 ${filesData.length}개의 서류를 검증해주세요. 각 서류가 ${docInfo.description} 청구에 적합한지 확인해주세요.`
+          },
+          // 이미지들 추가
+          ...filesData.map(file => ({
+            type: 'image_url',
+            image_url: {
+              url: file.data, // Base64 데이터
+              detail: 'high'
+            }
+          }))
+        ]
+      }
+    ]
+
+    const response = await fetch(OPENAI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o', // Vision 지원 모델
+        messages: messages,
+        max_tokens: 1000,
+        temperature: 0.3
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error?.message || '서류 검증 API 호출에 실패했습니다.')
+    }
+
+    const data = await response.json()
+    const resultText = data.choices[0]?.message?.content?.trim()
+
+    // JSON 파싱 시도
+    try {
+      const result = JSON.parse(resultText)
+      return result
+    } catch (parseError) {
+      // JSON 파싱 실패 시 텍스트 결과 반환
+      return {
+        isValid: true,
+        documentType: '서류',
+        confidence: '중간',
+        findings: [resultText],
+        issues: [],
+        recommendation: '서류를 확인했습니다.'
+      }
+    }
+
+  } catch (error) {
+    console.error('Document verification API 에러:', error)
+    throw error
+  }
+}

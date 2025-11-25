@@ -110,6 +110,58 @@ export const CLAIM_DOCUMENTS = {
         '주민등록번호는 전화로만 상담원에게 제공'
       ]
     }
+  },
+
+  // 항공기 지연
+  flight_delay: {
+    overseas: [
+      {
+        name: '항공기 지연 증명서',
+        description: '항공사에서 발급한 지연 확인서 (Delay Certificate)',
+        required: true
+      },
+      {
+        name: '탑승권 원본 또는 사본',
+        description: '지연된 항공편의 탑승권 (Boarding Pass)',
+        required: true
+      },
+      {
+        name: '항공권 사본',
+        description: 'E-ticket 또는 항공권 예약 확인서',
+        required: true
+      }
+    ],
+    home: [
+      {
+        name: '보험금 청구서',
+        description: '라이나손해보험 청구서 양식 작성',
+        required: true
+      },
+      {
+        name: '여권 사본',
+        description: '해외 여행 확인용',
+        required: true
+      },
+      {
+        name: '보험증권 사본',
+        description: '가입한 보험 계약 확인용',
+        required: false
+      }
+    ],
+    guidance: {
+      overseas_actions: [
+        '항공사 카운터에서 지연 증명서(Delay Certificate) 발급 요청',
+        '탑승권 원본 또는 사본 보관',
+        '항공권(E-ticket) 사본 준비',
+        '지연 시간 및 사유 확인'
+      ],
+      home_actions: [
+        '여권 사본 준비',
+        '청구서 작성',
+        '라이나손해보험 고객센터(1666-5075) 연락',
+        '지연 증명서 및 탑승권 제출'
+      ]
+    }
   }
 }
 
@@ -126,6 +178,11 @@ export const COVERAGE_INFO = {
     title: '해외 의료비',
     description: '해외 여행 중 질병이나 상해로 인한 치료비를 보상합니다.',
     icon: '🏥'
+  },
+  flight_delay: {
+    title: '항공기 지연',
+    description: '예정 출발시각으로부터 4시간 이상 지연된 경우 보상합니다.',
+    icon: '✈️'
   }
 }
 

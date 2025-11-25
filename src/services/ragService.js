@@ -506,7 +506,7 @@ export function isInsuranceRelatedQuery(query) {
 
 /**
  * 청구 시나리오(사고 상황)인지 판단
- * 도난, 분실, 파손, 질병, 상해 등의 키워드로 사고 발생 여부 감지
+ * 도난, 분실, 파손, 질병, 상해, 항공기 지연 등의 키워드로 사고 발생 여부 감지
  */
 export function isClaimScenario(query) {
   const queryLower = query.toLowerCase()
@@ -530,6 +530,13 @@ export function isClaimScenario(query) {
     '식중독', '감기', '독감'
   ]
 
+  // 항공기 지연 관련 키워드
+  const flightDelayKeywords = [
+    '항공기', '비행기', '항공편', '비행', 'flight',
+    '지연', '연착', '취소', 'delay', 'delayed', 'cancel',
+    '못 타', '못탔', '놓쳤'
+  ]
+
   // 물품 관련 키워드 (사고와 함께 언급될 때)
   const itemKeywords = [
     '휴대폰', '핸드폰', '스마트폰', '폰', 'phone',
@@ -548,12 +555,17 @@ export function isClaimScenario(query) {
     keyword => queryLower.includes(keyword)
   )
 
+  // 항공기 지연 키워드 확인
+  const hasFlightDelayIncident = flightDelayKeywords.some(
+    keyword => queryLower.includes(keyword)
+  )
+
   // 물품 키워드 확인
   const hasItemMention = itemKeywords.some(
     keyword => queryLower.includes(keyword)
   )
 
-  // 사고 시나리오 판단
+  // 사고 시나리오 판단 (우선순위 순서대로)
   // 1. 휴대품 손해 키워드만 있어도 사고로 판단
   if (hasPersonalBelongingsIncident) {
     return {
@@ -570,7 +582,15 @@ export function isClaimScenario(query) {
     }
   }
 
-  // 3. 물품 언급 + "없어졌어요", "못 찾겠어요" 같은 표현
+  // 3. 항공기 지연 키워드 확인
+  if (hasFlightDelayIncident) {
+    return {
+      isAccident: true,
+      type: 'flight_delay'
+    }
+  }
+
+  // 4. 물품 언급 + "없어졌어요", "못 찾겠어요" 같은 표현
   if (hasItemMention && (queryLower.includes('없어') || queryLower.includes('못 찾'))) {
     return {
       isAccident: true,

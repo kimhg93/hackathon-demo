@@ -86,7 +86,7 @@
                 <span class="label">보상 가능 금액</span>
                 <span class="amount">최대 {{ getDelayCompensation() }}</span>
               </div>
-              <button class="claim-button" @click="handleStartClaim">
+              <button class="claim-button" @click="handleStartClaim('항공기가 지연되었어요')">
                 보상 신청하기
               </button>
             </div>
@@ -428,8 +428,8 @@ const formatDate = (dateStr) => {
   return `${month}/${day}`
 }
 
-const handleStartClaim = () => {
-  emit('startClaim')
+const handleStartClaim = (initialMessage = null) => {
+  emit('startClaim', initialMessage)
 }
 
 const toggleCoverage = (index) => {
