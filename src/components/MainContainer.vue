@@ -9,7 +9,15 @@
 
     <!-- 보험 대시보드 -->
     <div v-if="viewMode === 'dashboard'" class="dashboard-view">
+      <!-- 테스트용 증권번호일 때 InsuranceDashboardCopy 표시 -->
+      <InsuranceDashboardCopy
+        v-if="currentUser?.policyNumber === 'LPA2024-1234567' || currentUser?.policyNumber === 'OTA2024-1234567'"
+        :user="currentUser"
+        @startClaim="handleStartClaim"
+      />
+      <!-- 일반 대시보드 -->
       <InsuranceDashboard
+        v-else
         :user="currentUser"
         @startClaim="handleStartClaim"
       />
@@ -42,6 +50,7 @@
 import { ref, computed, onMounted } from 'vue'
 import LoginModal from './auth/LoginModal.vue'
 import InsuranceDashboard from './insurance/InsuranceDashboard.vue'
+import InsuranceDashboardCopy from './insurance/InsuranceDashboardCopy.vue'
 import ChatContainer from './chat/ChatContainer.vue'
 import ProgressBar from './progress/ProgressBar.vue'
 import { MessageType, SenderType } from '../types/message.js'
