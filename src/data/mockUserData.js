@@ -11,12 +11,25 @@ export const MOCK_USERS = [
     phoneNumber: '010-1234-5678',
     email: 'hacker@example.com',
 
+    // 현재 위치 정보
+    location: {
+      latitude: 48.8566,  // 파리 에펠탑 근처
+      longitude: 2.3522,
+      address: '5 Avenue Anatole France, 75007 Paris, France',
+      city: 'Paris',
+      country: 'France',
+      countryCode: 'FR',
+      timestamp: '2024-11-23T14:30:00Z',
+      accuracy: 10 // meters
+    },
+
     // 보험 상품 정보
     insurance: {
       productName: 'Chubb 해외여행보험 프리미엄',
       startDate: '2024-11-20',
       endDate: '2024-12-05',
       destination: '프랑스 파리',
+      flightNumber: null, // SMS 인증 후 항공편 입력 시 설정됨
 
       // 보장 내용
       coverages: [
@@ -85,12 +98,25 @@ export const MOCK_USERS = [
     phoneNumber: '010-5555-6666',
     email: 'seungjin@example.com',
 
+    // 현재 위치 정보
+    location: {
+      latitude: 35.6762,  // 도쿄 신주쿠
+      longitude: 139.6503,
+      address: '1 Chome Kabukicho, Shinjuku City, Tokyo 160-0021, Japan',
+      city: 'Tokyo',
+      country: 'Japan',
+      countryCode: 'JP',
+      timestamp: '2024-11-23T15:45:00Z',
+      accuracy: 15 // meters
+    },
+
     // 보험 상품 정보
     insurance: {
       productName: 'Chubb 해외여행보험 베이직',
       startDate: '2024-11-15',
       endDate: '2024-11-30',
       destination: '일본',
+      flightNumber: 'KE706', // SMS 인증 후 항공편 입력됨
 
       // 보장 내용
       coverages: [
@@ -152,12 +178,25 @@ export const MOCK_USERS = [
     phoneNumber: '010-7777-8888',
     email: 'sonbo@example.com',
 
+    // 현재 위치 정보
+    location: {
+      latitude: 35.0116,  // 오사카 도톤보리
+      longitude: 135.5023,
+      address: 'Dotonbori, Chuo Ward, Osaka, 542-0071, Japan',
+      city: 'Osaka',
+      country: 'Japan',
+      countryCode: 'JP',
+      timestamp: '2024-11-23T16:20:00Z',
+      accuracy: 12 // meters
+    },
+
     // 보험 상품 정보
     insurance: {
       productName: 'Chubb 해외여행보험 베이직',
       startDate: '2024-11-15',
       endDate: '2024-11-30',
       destination: '일본',
+      flightNumber: 'OZ102', // SMS 인증 후 항공편 입력됨
 
       // 보장 내용
       coverages: [

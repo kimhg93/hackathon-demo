@@ -39,13 +39,13 @@
     </div>
 
     <!-- 항공편 정보 (입력된 경우에만 표시) -->
-    <div v-if="user.flightInfo" class="flight-info-section">
+    <div v-if="user.insurance?.flightNumber || user.flightInfo" class="flight-info-section">
       <div class="flight-card">
-        <div class="flight-header">
+        <div class="flight-header" @click="toggleFlightInfo">
           <div class="flight-icon">✈️</div>
           <div class="flight-main-info">
             <h3>항공편 정보</h3>
-            <p class="flight-number">{{ user.flightInfo.flightNumber }}</p>
+            <p class="flight-number">{{ user.insurance?.flightNumber || user.flightInfo?.flightNumber }}</p>
           </div>
           <div v-if="flightSchedule" class="flight-route">
             <div class="route-item">
@@ -61,56 +61,70 @@
             </div>
           </div>
           <div class="flight-status-badge" :class="flightStatusClass">
-            {{ flightStatus.text }}
+            {{ flightStatusText }}
+          </div>
+          <div class="toggle-icon">
+            {{ isFlightInfoExpanded ? '▼' : '▶' }}
           </div>
         </div>
 
-        <!-- 4시간 미만 지연: 경고 메시지 -->
-        <div v-if="flightStatus.delayed && !isCompensationEligible" class="delay-alert delay-warning">
-          <div class="alert-icon">⚠️</div>
-          <div class="alert-content">
-            <h4>항공편 지연 안내</h4>
-            <p>현재 {{ flightStatus.delayMinutes }}분 ({{ Math.floor(flightStatus.delayMinutes / 60) }}시간 {{ flightStatus.delayMinutes % 60 }}분) 지연되고 있습니다.</p>
-            <p class="compensation-text">4시간 이상 지연 시 최대 {{ getDelayCompensation() }} 보상이 가능합니다.</p>
-          </div>
-        </div>
-
-        <!-- 4시간 이상 지연: 보상 가능 메시지 -->
-        <div v-if="flightStatus.delayed && isCompensationEligible" class="delay-alert delay-compensation">
-          <div class="alert-icon">✅</div>
-          <div class="alert-content">
-            <h4>항공편 지연 보상 안내</h4>
-            <p>항공편이 {{ flightStatus.delayMinutes }}분 ({{ Math.floor(flightStatus.delayMinutes / 60) }}시간 {{ flightStatus.delayMinutes % 60 }}분) 지연되어 <strong>보상 대상</strong>입니다.</p>
-            <div class="compensation-details">
-              <div class="compensation-amount">
-                <span class="label">보상 가능 금액</span>
-                <span class="amount">최대 {{ getDelayCompensation() }}</span>
+        <transition name="flight-expand">
+          <div v-if="isFlightInfoExpanded" class="flight-details">
+            <!-- 4시간 미만 지연: 경고 메시지 -->
+            <div v-if="flightStatus.delayed && !isCompensationEligible" class="delay-alert delay-warning">
+              <div class="alert-icon">⚠️</div>
+              <div class="alert-content">
+                <h4>항공편 지연 안내</h4>
+                <p>현재 {{ flightStatus.delayMinutes }}분 ({{ Math.floor(flightStatus.delayMinutes / 60) }}시간 {{ flightStatus.delayMinutes % 60 }}분) 지연되고 있습니다.</p>
+                <p class="compensation-text">4시간 이상 지연 시 최대 {{ getDelayCompensation() }} 보상이 가능합니다.</p>
               </div>
-              <button class="claim-button" @click="handleStartClaim">
-                보상 신청하기
-              </button>
             </div>
-            <p class="compensation-note">💡 보상 신청 시 항공사 지연 확인서가 필요합니다.</p>
-          </div>
-        </div>
 
-        <div class="lounge-info">
-          <div class="lounge-header">
-            <span class="lounge-icon">🛋️</span>
-            <div>
-              <h4>{{ departureAirport.name }} 라운지 안내</h4>
-              <p class="airport-badge">{{ departureAirport.code }}</p>
+            <!-- 4시간 이상 지연: 보상 가능 메시지 -->
+            <div v-if="flightStatus.delayed && isCompensationEligible" class="delay-alert delay-compensation">
+              <div class="alert-icon">✅</div>
+              <div class="alert-content">
+                <h4>항공편 지연 보상 안내</h4>
+                <p>항공편이 {{ flightStatus.delayMinutes }}분 ({{ Math.floor(flightStatus.delayMinutes / 60) }}시간 {{ flightStatus.delayMinutes % 60 }}분) 지연되어 <strong>보상 대상</strong>입니다.</p>
+                <div class="compensation-details">
+                  <div class="compensation-amount">
+                    <span class="label">보상 가능 금액</span>
+                    <span class="amount">최대 {{ getDelayCompensation() }}</span>
+                  </div>
+                  <button class="claim-button" @click="handleStartClaim">
+                    보상 신청하기
+                  </button>
+                </div>
+                <p class="compensation-note">💡 보상 신청 시 항공사 지연 확인서가 필요합니다.</p>
+              </div>
+            </div>
+
+            <div class="lounge-info">
+              <div class="lounge-header" @click="toggleLoungeInfo">
+                <span class="lounge-icon">🛋️</span>
+                <div>
+                  <h4>{{ departureAirport.name }} 라운지 안내</h4>
+                  <p class="airport-badge">{{ departureAirport.code }}</p>
+                </div>
+                <div class="lounge-toggle-icon">
+                  {{ isLoungeInfoExpanded ? '▼' : '▶' }}
+                </div>
+              </div>
+              <transition name="lounge-expand">
+                <div v-if="isLoungeInfoExpanded" class="lounge-content">
+                  <p class="lounge-subtitle">출발 전 편안하게 이용하실 수 있는 라운지입니다</p>
+                  <div class="lounge-list">
+                    <div v-for="lounge in lounges" :key="lounge.name" class="lounge-item">
+                      <div class="lounge-name">{{ lounge.name }}</div>
+                      <div class="lounge-location">📍 {{ lounge.location }}</div>
+                      <div class="lounge-hours">🕐 {{ lounge.hours }}</div>
+                    </div>
+                  </div>
+                </div>
+              </transition>
             </div>
           </div>
-          <p class="lounge-subtitle">출발 전 편안하게 이용하실 수 있는 라운지입니다</p>
-          <div class="lounge-list">
-            <div v-for="lounge in lounges" :key="lounge.name" class="lounge-item">
-              <div class="lounge-name">{{ lounge.name }}</div>
-              <div class="lounge-location">📍 {{ lounge.location }}</div>
-              <div class="lounge-hours">🕐 {{ lounge.hours }}</div>
-            </div>
-          </div>
-        </div>
+        </transition>
       </div>
     </div>
 
@@ -215,24 +229,103 @@
     </div>
 
     <div class="quick-links">
-      <button class="link-button">
+      <button class="link-button" @click="openCustomerService">
         <span class="icon">📞</span>
         <span>고객센터</span>
       </button>
-      <button class="link-button">
+      <button class="link-button" @click="showCoverageModal = true">
         <span class="icon">📄</span>
         <span>약관 보기</span>
       </button>
-      <button class="link-button">
+      <button class="link-button" @click="openFAQ">
         <span class="icon">❓</span>
         <span>FAQ</span>
       </button>
+      <button class="link-button upload-button" @click="triggerFileUpload">
+        <span class="icon">📎</span>
+        <span>서류 업로드</span>
+        <input
+          ref="fileInput"
+          type="file"
+          accept="application/pdf,.pdf"
+          style="display: none"
+          @change="handleFileUpload"
+        />
+      </button>
     </div>
+
+    <!-- 업로드된 파일 목록 -->
+    <div v-if="uploadedFiles.length > 0" class="uploaded-files-section">
+      <div class="uploaded-header" @click="toggleUploadedFiles">
+        <h4 class="uploaded-title">📂 업로드된 서류</h4>
+        <div class="header-actions">
+          <button
+            v-if="hasPendingFiles && isUploadedFilesExpanded"
+            class="upload-all-btn"
+            @click.stop="uploadAllFiles"
+          >
+            📤 업로드하기
+          </button>
+          <div class="uploaded-toggle-icon">
+            {{ isUploadedFilesExpanded ? '▼' : '▶' }}
+          </div>
+        </div>
+      </div>
+      <transition name="uploaded-expand">
+        <div v-if="isUploadedFilesExpanded" class="uploaded-files-list">
+          <div
+            v-for="(file, index) in uploadedFiles"
+            :key="index"
+            class="uploaded-file-item"
+            :class="{ 'file-uploaded': file.status === 'uploaded' }"
+          >
+            <div class="file-info">
+              <span class="file-icon">📄</span>
+              <div class="file-details">
+                <span class="file-name">{{ file.name }}</span>
+                <span class="file-size">{{ file.size }}</span>
+                <span class="file-date">{{ file.uploadDate }}</span>
+                <span
+                  v-if="file.status === 'pending'"
+                  class="file-status pending"
+                >
+                  저장 중
+                </span>
+                <span
+                  v-if="file.status === 'uploaded'"
+                  class="file-status uploaded"
+                >
+                  ✓ 업로드 완료
+                </span>
+              </div>
+            </div>
+            <button class="file-remove-btn" @click="removeFile(index)">
+              ✕
+            </button>
+          </div>
+        </div>
+      </transition>
+    </div>
+
+    <!-- 보장내용 상세 모달 -->
+    <CoverageDetailModal
+      :isOpen="showCoverageModal"
+      @close="showCoverageModal = false"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
+import {
+  getFlightSchedule,
+  getDepartureAirportCode,
+  getAirportName,
+  getAirportLounges,
+  getAirportWeather,
+  getFlightDelayStatus
+} from '../../data/mockFlightData.js'
+import CoverageDetailModal from './CoverageDetailModal.vue'
 
 const props = defineProps({
   user: {
@@ -246,54 +339,60 @@ const emit = defineEmits(['startClaim'])
 // 각 coverage의 expand/collapse 상태 관리
 const expandedCoverages = ref({})
 
-// 항공편 스케줄 정보
-const flightSchedules = {
-  'OZ102': {
-    departure: {
-      airport: '인천',
-      code: 'ICN',
-      time: '17:00'
-    },
-    arrival: {
-      airport: '하네다',
-      code: 'HND',
-      time: '19:30'
-    }
-  },
-  'KE706': {
-    departure: {
-      airport: '김포',
-      code: 'GMP',
-      time: '10:45'
-    },
-    arrival: {
-      airport: '나리타',
-      code: 'NRT',
-      time: '13:10'
-    }
-  }
-}
+// 파일 업로드 관리
+const fileInput = ref(null)
+const uploadedFiles = ref([])
+
+// 약관 상세 모달 관리
+const showCoverageModal = ref(false)
+
+// 항공편 정보 확장/축소 관리
+const isFlightInfoExpanded = ref(true)
+
+// 라운지 정보 확장/축소 관리
+const isLoungeInfoExpanded = ref(true)
+
+// 업로드된 파일 목록 확장/축소 관리
+const isUploadedFilesExpanded = ref(true)
 
 // 현재 항공편의 스케줄 정보
 const flightSchedule = computed(() => {
-  const flightNumber = props.user.flightInfo?.flightNumber?.toUpperCase()
-  return flightSchedules[flightNumber] || null
+  // user.insurance.flightNumber 또는 user.flightInfo.flightNumber 사용
+  const flightNumber = props.user.insurance?.flightNumber || props.user.flightInfo?.flightNumber
+  return getFlightSchedule(flightNumber)
 })
 
 // 항공편 상태 (데모용 - 실제로는 API에서 가져옴)
-// 김손보: 4시간 이상 지연(보상 가능), 허승진: 2.5시간 지연(보상 불가)
 const flightStatus = computed(() => {
-  const delayMinutes = props.user.name === '김손보' ? 250 : 150
-  return {
-    delayed: true,
-    delayMinutes,
-    text: '지연'
+  return getFlightDelayStatus(props.user.name)
+})
+
+// 항공편 상태 텍스트
+const flightStatusText = computed(() => {
+  if (!flightStatus.value.delayed) {
+    return '보장중'
+  }
+
+  // 지연이 발생한 경우
+  if (flightStatus.value.delayMinutes >= 240) {
+    return '보상대상'
+  } else {
+    return '보장중(지연발생)'
   }
 })
 
 // 항공편 상태에 따른 CSS 클래스
 const flightStatusClass = computed(() => {
-  return flightStatus.value.delayed ? 'status-delayed' : 'status-ontime'
+  if (!flightStatus.value.delayed) {
+    return 'status-covered'
+  }
+
+  // 지연이 발생한 경우
+  if (flightStatus.value.delayMinutes >= 240) {
+    return 'status-compensation'
+  } else {
+    return 'status-delayed'
+  }
 })
 
 // 4시간(240분) 이상 지연 여부
@@ -301,115 +400,44 @@ const isCompensationEligible = computed(() => {
   return flightStatus.value.delayMinutes >= 240
 })
 
-// 공항별 라운지 정보
-const airportLounges = {
-  ICN: [ // 인천공항
-    {
-      name: '스카이허브 라운지',
-      location: '제1터미널 3층 동편 28번 게이트 근처',
-      hours: '05:30 - 21:30'
-    },
-    {
-      name: 'KAL 비즈니스클래스 라운지',
-      location: '제2터미널 3층 253번 게이트 근처',
-      hours: '05:00 - 22:00'
-    },
-    {
-      name: '아시아나 비즈니스 라운지',
-      location: '제1터미널 3층 동편 29번 게이트',
-      hours: '05:00 - 21:00'
-    },
-    {
-      name: 'MATINA',
-      location: '제2터미널 지하1층 푸드코트',
-      hours: '24시간'
-    }
-  ],
-  GMP: [ // 김포공항
-    {
-      name: 'KAL 라운지',
-      location: '국제선청사 3층 28번 게이트 맞은편',
-      hours: '06:00 - 19:00'
-    },
-    {
-      name: '아시아나 라운지',
-      location: '국제선청사 3층 출국장',
-      hours: '06:00 - 18:30'
-    },
-    {
-      name: 'SKY HUB LOUNGE',
-      location: '국제선청사 3층 26번 게이트 인근',
-      hours: '06:00 - 19:00'
-    }
-  ]
-}
-
-// 항공편명으로 출발 공항 판단
-const getDepartureAirport = () => {
-  if (!props.user.flightInfo?.flightNumber) return 'ICN'
-
-  const flightNumber = props.user.flightInfo.flightNumber.toUpperCase()
-
-  // KE706 등 김포발 국제선 (KE700번대 일부)
-  if (flightNumber.startsWith('KE70') || flightNumber.startsWith('KE71')) {
-    return 'GMP'
-  }
-
-  // OZ로 시작하는 아시아나 항공은 대부분 인천공항
-  if (flightNumber.startsWith('OZ')) {
-    return 'ICN'
-  }
-
-  // 기본값은 인천공항
-  return 'ICN'
-}
-
 // 출발 공항 정보
 const departureAirport = computed(() => {
-  const code = getDepartureAirport()
+  // user.insurance.flightNumber 또는 user.flightInfo.flightNumber 사용
+  const flightNumber = props.user.insurance?.flightNumber || props.user.flightInfo?.flightNumber
+  const code = getDepartureAirportCode(flightNumber)
   return {
     code,
-    name: code === 'GMP' ? '김포국제공항' : '인천국제공항'
+    name: getAirportName(code)
   }
 })
 
 // 해당 공항의 라운지 정보
 const lounges = computed(() => {
-  return airportLounges[departureAirport.value.code] || airportLounges.ICN
+  return getAirportLounges(departureAirport.value.code)
 })
 
-// 공항별 날씨 정보
-const airportWeather = {
-  ICN: {
-    location: '인천국제공항',
-    temperature: '12°C',
-    description: '맑음',
-    humidity: '55%',
-    windSpeed: '3m/s',
-    feelsLike: '10°C'
-  },
-  GMP: {
-    location: '김포국제공항',
-    temperature: '13°C',
-    description: '구름 조금',
-    humidity: '60%',
-    windSpeed: '2m/s',
-    feelsLike: '11°C'
-  }
-}
-
-// 현재 위치 (항공편이 있으면 출발 공항, 없으면 기본 위치)
+// 현재 위치 (사용자의 실제 위치 정보 사용)
 const currentLocation = computed(() => {
-  if (props.user.flightInfo) {
-    return airportWeather[departureAirport.value.code]?.location || '인천국제공항'
+  // 사용자의 위치 정보가 있으면 사용
+  if (props.user.location) {
+    return `${props.user.location.city}, ${props.user.location.country}`
   }
-  return '여행지' // 항공편 정보가 없는 경우
+
+  // 항공편이 있으면 출발 공항
+  const hasFlightNumber = props.user.insurance?.flightNumber || props.user.flightInfo
+  if (hasFlightNumber) {
+    const weather = getAirportWeather(departureAirport.value.code)
+    return weather?.location || '인천국제공항'
+  }
+
+  return '여행지' // 기본값
 })
 
 // 현재 위치 날씨
 const currentWeather = computed(() => {
-  if (props.user.flightInfo) {
-    return airportWeather[departureAirport.value.code] || airportWeather.ICN
+  const hasFlightNumber = props.user.insurance?.flightNumber || props.user.flightInfo
+  if (hasFlightNumber) {
+    return getAirportWeather(departureAirport.value.code)
   }
   // 기본 날씨 정보
   return {
@@ -442,6 +470,90 @@ const getDelayCompensation = () => {
     c => c.name.includes('항공기') && c.name.includes('지연')
   )
   return delayCoverage ? delayCoverage.limit : '20만원'
+}
+
+const openCustomerService = () => {
+  window.open('https://ec.aceinsurance.co.kr/jsp/acelimited/mainCert.jsp', '_blank', 'noopener,noreferrer')
+}
+
+const openFAQ = () => {
+  window.open('https://ec.aceinsurance.co.kr/jsp/customercenter/acelimited/cs/CsSFAQList.jsp', '_blank', 'noopener,noreferrer')
+}
+
+// 파일 업로드 관련 함수
+const triggerFileUpload = () => {
+  fileInput.value?.click()
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+const formatDateTime = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}.${month}.${day} ${hours}:${minutes}`
+}
+
+const handleFileUpload = (event) => {
+  const files = event.target.files
+  if (!files || files.length === 0) return
+
+  // 선택된 파일들을 업로드된 파일 목록에 추가 (실제 업로드는 하지 않음)
+  Array.from(files).forEach(file => {
+    // PDF 파일만 허용
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+      uploadedFiles.value.push({
+        name: file.name,
+        size: formatFileSize(file.size),
+        uploadDate: formatDateTime(new Date()),
+        type: 'pdf',
+        status: 'pending' // 'pending' | 'uploaded'
+      })
+    } else {
+      alert('PDF 파일만 업로드 가능합니다.')
+    }
+  })
+
+  // 파일 input 초기화 (같은 파일을 다시 선택할 수 있도록)
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
+// 대기 중인 파일이 있는지 확인
+const hasPendingFiles = computed(() => {
+  return uploadedFiles.value.some(file => file.status === 'pending')
+})
+
+// 모든 대기 중인 파일 업로드
+const uploadAllFiles = () => {
+  uploadedFiles.value.forEach(file => {
+    if (file.status === 'pending') {
+      file.status = 'uploaded'
+    }
+  })
+}
+
+const removeFile = (index) => {
+  uploadedFiles.value.splice(index, 1)
+}
+
+const toggleFlightInfo = () => {
+  isFlightInfoExpanded.value = !isFlightInfoExpanded.value
+}
+
+const toggleLoungeInfo = () => {
+  isLoungeInfoExpanded.value = !isLoungeInfoExpanded.value
+}
+
+const toggleUploadedFiles = () => {
+  isUploadedFilesExpanded.value = !isUploadedFilesExpanded.value
 }
 </script>
 
@@ -573,8 +685,30 @@ const getDelayCompensation = () => {
   gap: 16px;
   padding-bottom: 20px;
   border-bottom: 2px solid #f0f0f0;
-  margin-bottom: 20px;
   flex-wrap: wrap;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.flight-header:hover {
+  background: #f8f9fa;
+  margin: -8px -12px 0;
+  padding: 8px 12px 20px;
+  border-radius: 8px 8px 0 0;
+}
+
+.toggle-icon {
+  margin-left: auto;
+  font-size: 18px;
+  color: #4DBFC8;
+  font-weight: bold;
+  transition: transform 0.3s;
+  flex-shrink: 0;
+}
+
+.flight-details {
+  padding-top: 20px;
 }
 
 .flight-icon {
@@ -655,7 +789,7 @@ const getDelayCompensation = () => {
   font-weight: 600;
 }
 
-.status-ontime {
+.status-covered {
   background: #e8f5e9;
   color: #2e7d32;
 }
@@ -663,6 +797,13 @@ const getDelayCompensation = () => {
 .status-delayed {
   background: #fff3e0;
   color: #e65100;
+}
+
+.status-compensation {
+  background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+  font-weight: 700;
 }
 
 .delay-alert {
@@ -787,7 +928,29 @@ const getDelayCompensation = () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 8px;
+  margin: -8px -8px 8px;
+  border-radius: 8px;
+  position: relative;
+}
+
+.lounge-header:hover {
+  background: rgba(77, 191, 200, 0.1);
+}
+
+.lounge-toggle-icon {
+  margin-left: auto;
+  font-size: 16px;
+  color: #4DBFC8;
+  font-weight: bold;
+  transition: transform 0.3s;
+  flex-shrink: 0;
+}
+
+.lounge-content {
+  padding-top: 8px;
 }
 
 .lounge-icon {
@@ -1162,6 +1325,66 @@ const getDelayCompensation = () => {
   opacity: 1;
 }
 
+/* 항공편 정보 Expand/Collapse 애니메이션 */
+.flight-expand-enter-active,
+.flight-expand-leave-active {
+  transition: all 0.3s ease;
+  max-height: 1000px;
+  overflow: hidden;
+}
+
+.flight-expand-enter-from,
+.flight-expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.flight-expand-enter-to,
+.flight-expand-leave-from {
+  max-height: 1000px;
+  opacity: 1;
+}
+
+/* 라운지 정보 Expand/Collapse 애니메이션 */
+.lounge-expand-enter-active,
+.lounge-expand-leave-active {
+  transition: all 0.3s ease;
+  max-height: 500px;
+  overflow: hidden;
+}
+
+.lounge-expand-enter-from,
+.lounge-expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.lounge-expand-enter-to,
+.lounge-expand-leave-from {
+  max-height: 500px;
+  opacity: 1;
+}
+
+/* 업로드된 파일 목록 Expand/Collapse 애니메이션 */
+.uploaded-expand-enter-active,
+.uploaded-expand-leave-active {
+  transition: all 0.3s ease;
+  max-height: 1000px;
+  overflow: hidden;
+}
+
+.uploaded-expand-enter-from,
+.uploaded-expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.uploaded-expand-enter-to,
+.uploaded-expand-leave-from {
+  max-height: 1000px;
+  opacity: 1;
+}
+
 .help-section {
   margin-bottom: 32px;
 }
@@ -1255,6 +1478,190 @@ const getDelayCompensation = () => {
   font-size: 13px;
   font-weight: 500;
   color: #666;
+}
+
+.upload-button {
+  position: relative;
+}
+
+/* 업로드된 파일 섹션 */
+.uploaded-files-section {
+  margin-top: 32px;
+  padding: 20px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.uploaded-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  padding: 8px;
+  margin: -8px -8px 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.uploaded-header:hover {
+  background: #f8f9fa;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.uploaded-title {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+  font-weight: 600;
+}
+
+.upload-all-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #4DBFC8 0%, #3AA8B1 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.upload-all-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(77, 191, 200, 0.3);
+}
+
+.upload-all-btn:active {
+  transform: translateY(0);
+}
+
+.uploaded-toggle-icon {
+  font-size: 16px;
+  color: #4DBFC8;
+  font-weight: bold;
+  transition: transform 0.3s;
+  flex-shrink: 0;
+}
+
+.uploaded-files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.uploaded-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  transition: all 0.2s;
+}
+
+.uploaded-file-item:hover {
+  background: #f0f0f0;
+  border-color: #4DBFC8;
+}
+
+.uploaded-file-item.file-uploaded {
+  background: #e8f5e9;
+  border-color: #4caf50;
+}
+
+.uploaded-file-item.file-uploaded:hover {
+  background: #c8e6c9;
+  border-color: #2e7d32;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.file-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.file-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-size {
+  font-size: 13px;
+  color: #666;
+}
+
+.file-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.file-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-top: 2px;
+}
+
+.file-status.pending {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.file-status.uploaded {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.file-remove-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #fff;
+  color: #999;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-remove-btn:hover {
+  background: #fee;
+  color: #f44;
+  transform: scale(1.1);
 }
 
 /* 모바일 최적화 */
@@ -1554,6 +1961,56 @@ const getDelayCompensation = () => {
   .lounge-hours {
     font-size: 11px;
   }
+
+  .uploaded-files-section {
+    margin-top: 20px;
+    padding: 16px;
+  }
+
+  .uploaded-header {
+    flex-wrap: wrap;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .uploaded-title {
+    font-size: 16px;
+  }
+
+  .upload-all-btn {
+    flex: 1;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .uploaded-file-item {
+    padding: 12px;
+  }
+
+  .file-icon {
+    font-size: 28px;
+  }
+
+  .file-name {
+    font-size: 14px;
+  }
+
+  .file-size {
+    font-size: 12px;
+  }
+
+  .file-date {
+    font-size: 11px;
+  }
+
+  .file-remove-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
 }
 
 /* 더 작은 모바일 (iPhone SE 등) */
@@ -1584,6 +2041,19 @@ const getDelayCompensation = () => {
 
   .link-button {
     width: 100%;
+  }
+
+  .uploaded-files-section {
+    margin-top: 16px;
+    padding: 14px;
+  }
+
+  .uploaded-title {
+    font-size: 15px;
+  }
+
+  .file-details {
+    gap: 2px;
   }
 }
 </style>

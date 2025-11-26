@@ -37,6 +37,7 @@
       <div class="chat-section">
         <ChatContainer
           ref="chatContainerRef"
+          :user="currentUser"
           @progressUpdate="handleProgressUpdate"
           @checklistComplete="handleChecklistComplete"
           @goToDashboard="handleBackToDashboard"
@@ -47,13 +48,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import LoginModal from './auth/LoginModal.vue'
 import InsuranceDashboard from './insurance/InsuranceDashboard.vue'
 import InsuranceDashboardCopy from './insurance/InsuranceDashboardCopy.vue'
 import ChatContainer from './chat/ChatContainer.vue'
 import ProgressBar from './progress/ProgressBar.vue'
 import { MessageType, SenderType } from '../types/message.js'
+import { useWebPush } from '../composables/useWebPush.js'
 
 // 상태 관리
 const viewMode = ref('login') // 'login' | 'dashboard' | 'chat'
@@ -62,6 +64,16 @@ const currentUser = ref(null)
 const currentStep = ref(0)
 const chatContainerRef = ref(null)
 const progressTimers = ref([]) // 타이머 관리용
+
+// 웹푸시 기능
+const {
+  isSupported,
+  permission,
+  requestPermission,
+  showNotification,
+  startMarketingPush,
+  stopMarketingPush
+} = useWebPush()
 
 // 진행 단계 정의
 const progressSteps = computed(() => {
@@ -96,6 +108,13 @@ const progressSteps = computed(() => {
 
 // 서류 체크리스트와 타임라인은 챗봇 메시지로 주입됨
 
+// 웹푸시 알림 클릭 핸들러
+const handleNotificationClick = (url) => {
+  if (url) {
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+}
+
 // 이벤트 핸들러
 const handleLogin = (user) => {
   currentUser.value = user
@@ -103,6 +122,14 @@ const handleLogin = (user) => {
 }
 
 const handleStartClaim = () => {
+  console.log('🚀 사고 접수하기 클릭 - 챗봇으로 이동', {
+    userName: currentUser.value?.name,
+    policyNumber: currentUser.value?.policyNumber,
+    flightNumber: currentUser.value?.insurance?.flightNumber,
+    hasLocation: !!currentUser.value?.location,
+    hasMarketingConsent: !!currentUser.value?.marketingConsent
+  })
+
   viewMode.value = 'chat'
   chatPhase.value = 'accident_classification'
   currentStep.value = 0
@@ -192,6 +219,27 @@ const handleChecklistComplete = () => {
     })
   }
 }
+
+// currentUser와 viewMode를 감시하여 마케팅 푸시 시작/중지
+watch([currentUser, viewMode], ([user, mode]) => {
+  // 대시보드 화면이고, 사용자가 있고, 마케팅 동의(푸시)한 경우
+  if (mode === 'dashboard' && user?.marketingConsent?.push) {
+    // 웹푸시 권한 요청 후 시작
+    if (permission.value === 'granted') {
+      startMarketingPush(handleNotificationClick)
+    } else if (permission.value === 'default') {
+      // 권한이 아직 결정되지 않은 경우 요청
+      requestPermission().then((granted) => {
+        if (granted) {
+          startMarketingPush(handleNotificationClick)
+        }
+      })
+    }
+  } else {
+    // 대시보드가 아니거나 마케팅 동의하지 않은 경우 중지
+    stopMarketingPush()
+  }
+}, { immediate: true })
 
 // 초기 로딩
 onMounted(() => {

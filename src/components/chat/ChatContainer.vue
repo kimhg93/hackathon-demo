@@ -92,6 +92,25 @@ import { CLAIM_DOCUMENTS } from '../../data/claimDocuments.js'
 import { MessageType } from '../../types/message.js'
 import { searchPlace } from '../../services/placeService.js'
 
+// Props 정의
+const props = defineProps({
+  user: {
+    type: Object,
+    default: null
+  }
+})
+
+// 사용자 정보 확인 (디버깅용)
+watch(() => props.user, (newUser) => {
+  console.log('🔍 ChatContainer - User Info:', {
+    name: newUser?.name,
+    policyNumber: newUser?.policyNumber,
+    flightNumber: newUser?.insurance?.flightNumber,
+    location: newUser?.location,
+    hasMarketingConsent: !!newUser?.marketingConsent
+  })
+}, { immediate: true })
+
 // 상수 정의
 const CONSTANTS = {
   CUSTOMER_SERVICE_PHONE: '1666-5075',
@@ -304,10 +323,34 @@ const handleActionClick = async (actionData) => {
         const placeType = type === 'search_police' ? '경찰서' : '병원'
         
         try {
+          // 사용자 위치 정보 활용
+          const userLocation = props.user?.location
+
+          console.log('📍 장소 검색 시작:', {
+            placeType: placeTypeForSearch,
+            userName: props.user?.name,
+            userLocation: userLocation ? {
+              city: userLocation.city,
+              lat: userLocation.latitude,
+              lng: userLocation.longitude
+            } : 'No location',
+            flightNumber: props.user?.insurance?.flightNumber
+          })
+
           // 장소 검색 직접 호출
           const placeData = await searchPlace({
             placeType: placeTypeForSearch,
-            useCurrentLocation: true
+            useCurrentLocation: true,
+            // 사용자 GPS 위치가 있으면 사용
+            userLat: userLocation?.latitude,
+            userLng: userLocation?.longitude
+          })
+
+          console.log('✅ 장소 검색 결과:', {
+            name: placeData.name,
+            address: placeData.address,
+            lat: placeData.lat,
+            lng: placeData.lng
           })
 
           // 지도 메시지 생성

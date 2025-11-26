@@ -244,6 +244,12 @@ const handleFlightSubmit = () => {
   if (pendingUser.value) {
     const userWithFlight = {
       ...pendingUser.value,
+      // insurance 객체 내부의 flightNumber 업데이트
+      insurance: {
+        ...pendingUser.value.insurance,
+        flightNumber: flightNumber.value ? flightNumber.value.trim().toUpperCase() : null
+      },
+      // 하위 호환성을 위해 flightInfo도 유지
       flightInfo: flightNumber.value ? {
         flightNumber: flightNumber.value.trim().toUpperCase(),
         timestamp: new Date().toISOString()

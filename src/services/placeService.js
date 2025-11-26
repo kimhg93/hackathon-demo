@@ -96,25 +96,37 @@ const GOOGLE_PLACE_TYPE_MAP = {
  * @param {string} params.placeType - 장소 타입
  * @param {string} params.name - 특정 장소 이름 (선택)
  * @param {boolean} params.useCurrentLocation - 현재 위치 사용 여부
+ * @param {number} params.userLat - 사용자 위도 (mockUserData에서)
+ * @param {number} params.userLng - 사용자 경도 (mockUserData에서)
  * @param {number} params.resultIndex - 검색 결과 인덱스 (기본값: 0, 첫 번째 결과)
  * @param {Array} params.cachedResults - 캐시된 검색 결과 (이미 검색한 경우 재사용)
  * @returns {Promise<Object>} 장소 정보 { name, lat, lng, address, placeType, zoom, allResults?, currentIndex? }
  */
-export async function searchPlace({ placeType, name, useCurrentLocation, resultIndex = 0, cachedResults = null }) {
+export async function searchPlace({ placeType, name, useCurrentLocation, userLat, userLng, resultIndex = 0, cachedResults = null }) {
   try {
     // Google Maps API 로드
     await loadGoogleMaps()
 
-    // 현재 위치 가져오기 또는 기본 위치 (서울시청)
+    // 현재 위치 가져오기 또는 기본 위치
     let location
-    if (useCurrentLocation) {
+
+    // 1순위: 사용자 GPS 위치 정보 (mockUserData에서)
+    if (userLat && userLng) {
+      location = { lat: userLat, lng: userLng }
+      console.log(`📍 사용자 GPS 위치 사용: ${userLat}, ${userLng}`)
+    }
+    // 2순위: 브라우저 Geolocation API
+    else if (useCurrentLocation) {
       try {
         location = await getCurrentLocation()
+        console.log('📍 브라우저 위치 사용:', location)
       } catch (error) {
         console.warn('현재 위치를 가져올 수 없어 서울시청 기준으로 검색합니다:', error)
         location = { lat: 37.5665, lng: 126.9780 } // 서울시청
       }
-    } else {
+    }
+    // 3순위: 기본 위치 (서울시청)
+    else {
       location = { lat: 37.5665, lng: 126.9780 } // 서울시청
     }
 
